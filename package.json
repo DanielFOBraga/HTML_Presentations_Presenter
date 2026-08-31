@@ -1,0 +1,64 @@
+{
+  "name": "apresentacoes-html",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Exporta apresentações Claude Design sem barra lateral e apresenta em dois ecrãs.",
+  "author": "Apresentações HTML",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DanielFOBraga/HTML_Presentations_Presenter.git"
+  },
+  "keywords": [
+    "electron",
+    "apresentacoes",
+    "presenter-view",
+    "claude-design",
+    "html-slides"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"test/*.test.js\"",
+    "dist": "electron-builder --win",
+    "make-icon": "node scripts/make-icon.js"
+  },
+  "devDependencies": {
+    "electron": "^44.1.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "com.apresentacoeshtml.app",
+    "productName": "Apresentações HTML",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        { "target": "nsis", "arch": ["x64"] },
+        { "target": "portable", "arch": ["x64"] }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Apresentações HTML",
+      "artifactName": "Apresentacoes-HTML-${version}-instalador.${ext}"
+    },
+    "portable": {
+      "artifactName": "Apresentacoes-HTML-${version}-portatil.${ext}"
+    }
+  }
+}

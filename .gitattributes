@@ -1,0 +1,6 @@
+# Normaliza as mudanças de linha no repositório, mantendo as do sistema local.
+* text=auto
+
+*.png binary
+*.ico binary
+*.exe binary

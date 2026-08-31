@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Apresentação</title>
+<style>
+  html, body { height: 100%; margin: 0; background: #000; overflow: hidden; }
+  #stage-box { position: absolute; inset: 0; overflow: hidden; }
+  /* Tamanho e escala vêm do DeckFrame.fit(). */
+  #frame {
+    position: absolute; left: 50%; top: 50%;
+    transform-origin: center center;
+    border: 0; background: #000;
+  }
+  #hint {
+    position: fixed; inset-inline: 0; bottom: 28px;
+    text-align: center; font: 14px/1.5 "Segoe UI", system-ui, sans-serif;
+    color: rgba(255, 255, 255, 0.72);
+    pointer-events: none;
+    transition: opacity 300ms ease;
+  }
+  #hint span {
+    background: rgba(0, 0, 0, 0.62); padding: 8px 16px; border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+  #hint[hidden] { display: none; }
+</style>
+</head>
+<body>
+<div id="stage-box"><iframe id="frame" title="Slide"></iframe></div>
+<p id="hint" hidden><span></span></p>
+<script src="/ui/shared/deck-frame.js"></script>
+<script src="/ui/display/display.js"></script>
+</body>
+</html>

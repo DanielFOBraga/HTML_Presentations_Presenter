@@ -1,0 +1,17 @@
+# Dependências
+node_modules/
+
+# Resultado do empacotamento (electron-builder)
+dist/
+
+# Apresentações de exemplo: são ficheiros de 4 a 12 MB com conteúdo real de
+# clientes. Ficam de fora do repositório de propósito — ver examples/README.md.
+examples/**/*.html
+
+# Sistema operativo / editores
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.log
+.vscode/
+.idea/

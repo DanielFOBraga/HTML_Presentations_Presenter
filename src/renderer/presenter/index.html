@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<title>Vista do apresentador</title>
+<link rel="stylesheet" href="/ui/shared/base.css">
+<link rel="stylesheet" href="/ui/presenter/presenter.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="bar">
+    <div class="bar-left">
+      <span id="deck-name" class="deck-name"></span>
+      <span id="position" class="position">–</span>
+    </div>
+
+    <div class="bar-center">
+      <button id="prev" type="button" title="Slide anterior (←)" aria-label="Slide anterior">◀</button>
+      <button id="next" type="button" title="Slide seguinte (→)" aria-label="Slide seguinte">▶</button>
+    </div>
+
+    <div class="bar-right">
+      <button id="timer" class="timer" type="button" title="Clique para reiniciar o cronómetro">00:00</button>
+      <span id="clock" class="clock"></span>
+      <button id="toggle-grid" type="button" title="Mostrar/esconder a grelha de slides (G)">Slides</button>
+      <button id="move" type="button" title="Passar o slide para o outro ecrã">Trocar ecrã</button>
+      <button id="stop" type="button" title="Terminar (Esc)">Terminar</button>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section class="pane pane-current">
+      <p class="eyebrow">Slide atual</p>
+      <div class="frame-box" id="current-box"><iframe id="current-frame" title="Slide atual"></iframe></div>
+    </section>
+
+    <aside class="side">
+      <section class="pane pane-next">
+        <p class="eyebrow">A seguir</p>
+        <div class="frame-box" id="next-box">
+          <iframe id="next-frame" title="Slide seguinte"></iframe>
+          <div id="next-end" class="end-card" hidden>Fim da apresentação</div>
+        </div>
+        <p id="next-label" class="next-label muted"></p>
+      </section>
+
+      <section class="pane pane-notes">
+        <p class="eyebrow">Notas do orador</p>
+        <div id="notes" class="notes"></div>
+      </section>
+    </aside>
+  </main>
+
+  <section id="grid-panel" class="grid-panel" hidden>
+    <div id="grid" class="grid"></div>
+  </section>
+
+  <div id="toast" class="toast" hidden></div>
+</div>
+
+<script src="/ui/shared/deck-frame.js"></script>
+<script src="/ui/shared/thumbs.js"></script>
+<script src="/ui/presenter/presenter.js"></script>
+</body>
+</html>
