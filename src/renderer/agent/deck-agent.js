@@ -105,26 +105,76 @@
     const stage = document.querySelector('#stage') || document.querySelector('#viewport') || document.body;
 
     // Esconder a navegação própria do deck — a app é que passa os slides.
+    // (#hud é o rodapé "1 / 21 · ← → navegar" dos decks mais recentes.)
     const style = document.createElement('style');
-    style.textContent = '#nav, #progress { display: none !important; }';
+    style.textContent = '#nav, #progress, #hud { display: none !important; }';
     document.head.appendChild(style);
 
-    const activeIndex = () => {
-      const byClass = list.findIndex((s) => s.classList && s.classList.contains('active'));
-      if (byClass >= 0) return byClass;
-      // Sem .active: o slide visível é o que não está transparente.
-      const visible = list.findIndex((s) => {
-        const cs = getComputedStyle(s);
-        return cs.visibility !== 'hidden' && parseFloat(cs.opacity) > 0.5;
-      });
-      return visible >= 0 ? visible : 0;
+    /**
+     * Qual é o slide ativo.
+     *
+     * Estes decks marcam-no com uma classe, mas o nome varia (.active num,
+     * .on noutro), por isso descobrimo-lo em vez de o adivinhar: é a classe
+     * que está num slide só. Ler a classe é síncrono e exato — ler o estilo
+     * computado não, porque a troca de slide é animada (`transition: opacity
+     * .35s`) e durante a animação quem ainda está opaco é o slide que SAI.
+     * Era isso que fazia o índice ficar preso no slide anterior.
+     */
+    const MARKERS = ['active', 'on', 'current', 'visible', 'shown', 'present', 'selected'];
+    let marker = null;
+
+    const findMarker = () => {
+      const counts = new Map();
+      for (const slide of list) {
+        for (const token of slide.classList) counts.set(token, (counts.get(token) || 0) + 1);
+      }
+      const unique = [...counts.keys()].filter((token) => counts.get(token) === 1);
+      // Um nome conhecido ganha; só quando não há nenhum é que aceitamos o
+      // único candidato (e mesmo esse é reavaliado se não acompanhar o deck).
+      return unique.find((token) => MARKERS.includes(token))
+        || (unique.length === 1 ? unique[0] : null);
     };
 
-    const press = (key) => {
-      for (const target of [document, window]) {
-        target.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    const activeIndex = () => {
+      if (marker === null) marker = findMarker();
+      if (marker !== null) {
+        const found = list.findIndex((s) => s.classList && s.classList.contains(marker));
+        if (found >= 0) return found;
+        marker = null; // a classe que seguíamos desapareceu: procurar outra
       }
+      // Sem classe que distinga o ativo: fica o mais opaco dos visíveis.
+      let best = -1;
+      let bestOpacity = 0;
+      list.forEach((slide, i) => {
+        const cs = getComputedStyle(slide);
+        if (cs.visibility === 'hidden' || cs.display === 'none') return;
+        const opacity = parseFloat(cs.opacity);
+        if (opacity > bestOpacity) { best = i; bestOpacity = opacity; }
+      });
+      return best >= 0 ? best : 0;
     };
+
+    // Um único dispatch: o evento borbulha de `document` até `window`, por
+    // isso chega aos decks que ouvem num e aos que ouvem no outro. Disparar
+    // nos dois entregava-o duas vezes e o deck andava dois slides por passo.
+    const press = (key) => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
+    };
+
+    // Estes decks também passam de slide ao clique (no palco ou na janela).
+    // Deixá-los fazer isso por si desencontrava as duas janelas, por isso o
+    // clique é intercetado e entregue à app como se fosse uma tecla — a
+    // navegação volta depois pelo goTo(), como em qualquer outro caso.
+    window.addEventListener('click', (event) => {
+      if (!event.isTrusted) return;
+      if (event.target && event.target.closest && event.target.closest('a')) return;
+      event.stopImmediatePropagation();
+      post({
+        type: 'present:key',
+        key: event.clientX < window.innerWidth * 0.3 ? 'ArrowLeft' : 'ArrowRight',
+        shiftKey: false,
+      });
+    }, true);
 
     // A dimensão de desenho é a do palco ANTES do transform: scale().
     const cs = stage ? getComputedStyle(stage) : null;
@@ -147,7 +197,12 @@
           const current = activeIndex();
           if (current === clamped) return;
           press(current < clamped ? 'ArrowRight' : 'ArrowLeft');
-          if (activeIndex() === current) return; // não se mexeu: desistir
+          if (activeIndex() !== current) continue;
+          // Não mexeu. Ou o deck ignora as setas, ou a classe que estávamos a
+          // seguir não é a do slide ativo — redetetar e confirmar antes de
+          // desistir, senão ficávamos presos num slide para sempre.
+          marker = null;
+          if (activeIndex() === current) return;
         }
       },
       onChange(fn) {

@@ -137,6 +137,35 @@ Documentação técnica em [`docs/`](docs/):
 
 ---
 
+## Histórico
+
+### 1.0.1
+
+Corrige a navegação nas apresentações do Claude Code que marcam o slide ativo
+com `.on` e animam a troca (`transition: opacity`). Nessas, o modo apresentador
+ficava preso nos primeiros slides: uma tecla em cada duas não fazia nada e a
+outra saltava dois slides.
+
+Eram dois defeitos no agente, a somar-se:
+
+- a tecla sintética era disparada em `document` **e** em `window`; como o evento
+  borbulha de um para o outro, o deck recebia-a duas vezes e andava dois slides
+  por cada passo pedido;
+- o slide ativo era procurado pela classe `.active`, que estes decks não usam. O
+  plano B — ler o estilo computado — engana-se durante a animação, porque quem
+  ainda está opaco é o slide que *sai*; a app lia sempre o slide anterior.
+
+O nome da classe passa a ser descoberto (é a que está num slide só), em vez de
+adivinhado. Pelo caminho: o rodapé `#hud` destes decks deixa de aparecer no
+projetor, e o clique no slide passa pela app em vez de o deck navegar por si —
+que era mais uma forma de as duas janelas se desencontrarem.
+
+### 1.0.0
+
+Primeira versão.
+
+---
+
 ## Notas
 
 - **Sem dependências em produção.** Só Electron e o electron-builder, ambos de
