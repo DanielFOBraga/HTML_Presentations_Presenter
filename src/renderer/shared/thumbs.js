@@ -50,7 +50,12 @@ window.ThumbGrid = (function () {
       .replace(/(^|[\s,>~+(}])html((?:\[[^\]]*\]|[.#][-\w]+|:[-\w]+(?:\([^)]*\))?)+)(?![-\w])/g, '$1:host($2)')
       .replace(/(^|[\s,>~+(}])html(?![-\w])/g, '$1:host');
 
-    return absolutizeCss(css, doc.baseURI);
+    // As entradas animadas (texto que aparece com fade quando o slide fica
+    // ativo) deixavam as miniaturas vazias. Sem transições nem atrasos, cada
+    // clone mostra logo o estado final do slide.
+    return absolutizeCss(css, doc.baseURI)
+      + ' *, *::before, *::after { transition: none !important;'
+      + ' animation-duration: 0s !important; animation-delay: 0s !important; }';
   }
 
   /** Um custom element clonado faria upgrade ao ser inserido; troca-se por div. */
@@ -95,10 +100,16 @@ window.ThumbGrid = (function () {
     // O <deck-stage> posiciona os slides a partir do shadow CSS dele, que não
     // chega aqui; o clone tem de se posicionar sozinho. E fica sempre visível,
     // ao contrário do original que está hidden fora do slide ativo.
-    clone.style.cssText += ';position:absolute;top:0;left:0;transform-origin:0 0;'
-      + 'pointer-events:none;box-sizing:border-box;overflow:hidden;'
-      + `width:${design.width}px;height:${design.height}px;`
-      + 'visibility:visible;opacity:1;margin:0;';
+    // Com !important: há decks que fixam `height: 100% !important` em certos
+    // slides (a capa do deck do consórcio), e isso ganhava ao estilo inline —
+    // a miniatura ficava com a altura da célula, antes da escala, e vazia.
+    const fixed = {
+      position: 'absolute', top: '0', left: '0', 'transform-origin': '0 0',
+      'pointer-events': 'none', 'box-sizing': 'border-box', overflow: 'hidden',
+      width: `${design.width}px`, height: `${design.height}px`,
+      visibility: 'visible', opacity: '1', margin: '0',
+    };
+    for (const [name, value] of Object.entries(fixed)) clone.style.setProperty(name, value, 'important');
     return clone;
   }
 
@@ -171,6 +182,7 @@ window.ThumbGrid = (function () {
         }
 
         const clone = prepareClone(slide, doc, this.design);
+        if (api.markActive) api.markActive(clone);
         shadow.appendChild(clone);
 
         const number = document.createElement('span');

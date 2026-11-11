@@ -45,6 +45,80 @@ function rememberRecent(filePath) {
   return list;
 }
 
+// ------------------------------------------------------------- definições
+
+const settingsFile = () => path.join(app.getPath('userData'), 'definicoes.json');
+
+function readSettings() {
+  try {
+    const data = JSON.parse(fs.readFileSync(settingsFile(), 'utf8'));
+    return data && typeof data === 'object' ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeSettings(patch) {
+  const next = { ...readSettings(), ...patch };
+  try {
+    fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
+    fs.writeFileSync(settingsFile(), JSON.stringify(next, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[definições] não foi possível gravar:', err.message);
+  }
+  return next;
+}
+
+// -------------------------------------------------------------- biblioteca
+
+const isHtml = (name) => /\.html?$/i.test(name);
+
+function listHtml(dir) {
+  try {
+    return fs.readdirSync(dir, { withFileTypes: true })
+      .filter((e) => e.isFile() && isHtml(e.name))
+      .map((e) => path.join(dir, e.name));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Apresentações dentro da pasta escolhida. Segue a organização de projeto
+ * (uma pasta por apresentação, com o ficheiro final em `standalone/`), mas
+ * aceita também .html soltos na raiz ou na pasta de cada apresentação quando
+ * essa não tem `standalone/`.
+ */
+function scanLibrary(root) {
+  if (!root || !fs.existsSync(root)) return [];
+  const found = listHtml(root).map((filePath) => ({ filePath, folder: '' }));
+
+  let dirs = [];
+  try {
+    dirs = fs.readdirSync(root, { withFileTypes: true }).filter((e) => e.isDirectory());
+  } catch { /* pasta ilegível: devolve o que houver */ }
+
+  for (const dir of dirs) {
+    const base = path.join(root, dir.name);
+    const standalone = listHtml(path.join(base, 'standalone'));
+    const files = standalone.length ? standalone : listHtml(base);
+    for (const filePath of files) found.push({ filePath, folder: dir.name });
+  }
+
+  return found
+    .map((item) => {
+      let modifiedAt = 0;
+      let size = 0;
+      try {
+        const st = fs.statSync(item.filePath);
+        modifiedAt = st.mtimeMs;
+        size = st.size;
+      } catch { /* entretanto apagado */ }
+      return { ...item, name: path.basename(item.filePath), modifiedAt, size };
+    })
+    .sort((a, b) => b.modifiedAt - a.modifiedAt);
+}
+
 // ------------------------------------------------------------------ sessão
 
 function inspect(filePath) {
@@ -56,7 +130,20 @@ function inspect(filePath) {
     innerKind: deck.innerKind,
     hasRail: transform.hasRail(deck.template),
     isClean: transform.isClean(deck.template),
+    paths: transform.detectPaths(deck.template),
   };
+}
+
+/** URL do deck dentro do servidor, com o percurso escolhido (se houver). */
+function deckUrlFor(current) {
+  if (!current.paths || !current.path) return '/deck/deck.html';
+  return `/deck/deck.html?${encodeURIComponent(current.paths.param)}=${encodeURIComponent(current.path)}`;
+}
+
+/** Percurso válido para este deck: o pedido, ou o primeiro. */
+function pickPath(paths, wanted) {
+  if (!paths) return null;
+  return paths.options.some((o) => o.id === wanted) ? wanted : paths.options[0].id;
 }
 
 function endSession({ showLauncher = true } = {}) {
@@ -74,10 +161,11 @@ function endSession({ showLauncher = true } = {}) {
   }
 }
 
-async function startSession(filePath) {
+async function startSession(filePath, { path: wantedPath } = {}) {
   endSession({ showLauncher: false });
 
   const info = inspect(filePath);
+  info.path = pickPath(info.paths, wantedPath);
   const prepared = unpack.prepare(filePath, cacheRoot);
   http.setDeckDir(prepared.dir);
   rememberRecent(filePath);
@@ -148,9 +236,31 @@ function registerIpc() {
     shell.showItemInFolder(filePath);
   });
 
-  ipcMain.handle('present:start', async (_e, filePath) => {
+  ipcMain.handle('library:get', () => {
+    const { libraryDir = null } = readSettings();
+    return { dir: libraryDir, items: scanLibrary(libraryDir) };
+  });
+
+  ipcMain.handle('library:pick', async () => {
+    const result = await dialog.showOpenDialog(launcherWin, {
+      title: 'Pasta com as apresentações',
+      properties: ['openDirectory'],
+    });
+    if (result.canceled || !result.filePaths.length) return null;
+    const libraryDir = result.filePaths[0];
+    writeSettings({ libraryDir });
+    return { dir: libraryDir, items: scanLibrary(libraryDir) };
+  });
+
+  ipcMain.handle('launcher:initialFile', () => {
+    const file = pendingFile;
+    pendingFile = null;
+    return file;
+  });
+
+  ipcMain.handle('present:start', async (_e, filePath, options) => {
     try {
-      return await startSession(filePath);
+      return await startSession(filePath, options || {});
     } catch (err) {
       console.error('[apresentar] falhou:', err);
       endSession();
@@ -166,7 +276,9 @@ function registerIpc() {
       name: session.name,
       filePath: session.filePath,
       innerKind: session.innerKind,
-      deckUrl: '/deck/deck.html',
+      deckUrl: deckUrlFor(session),
+      paths: session.paths,
+      path: session.path,
       index: session.index,
       role: isDisplay ? 'display' : 'presenter',
       onSecondScreen: Boolean(session.displayWin && session.displayWin.__onSecondScreen),
@@ -182,6 +294,24 @@ function registerIpc() {
     forward(event.sender, 'deck:index', index);
   });
 
+  // Teclas e cliques na janela do slide: quem decide é o apresentador.
+  ipcMain.on('deck:key', (event, key, shiftKey) => forward(event.sender, 'deck:key', { key, shiftKey }));
+
+  // Ecrã preto/branco (B / W no PowerPoint).
+  ipcMain.on('display:blank', (event, mode) => forward(event.sender, 'display:blank', mode || null));
+
+  // Trocar de percurso a meio: as duas janelas recarregam o deck no novo URL.
+  ipcMain.on('present:setPath', (_event, wanted) => {
+    if (!session || !session.paths) return;
+    const next = pickPath(session.paths, wanted);
+    if (next === session.path) return;
+    session.path = next;
+    const payload = { path: next, deckUrl: deckUrlFor(session), index: session.index };
+    for (const win of [session.presenterWin, session.displayWin]) {
+      if (win && !win.isDestroyed()) win.webContents.send('deck:reload', payload);
+    }
+  });
+
   ipcMain.handle('display:move', () => {
     if (!session || !session.displayWin || session.displayWin.isDestroyed()) return false;
     const moved = windows.moveToNextDisplay(session.displayWin);
@@ -191,9 +321,40 @@ function registerIpc() {
 
 // ---------------------------------------------------------------- lifecycle
 
+/**
+ * Ficheiro passado na linha de comandos — "Abrir com", ou arrastar um .html
+ * para cima do executável. Fica à espera até o ecrã inicial o pedir.
+ */
+let pendingFile = null;
+
+function fileFromArgv(argv) {
+  const candidate = argv.slice(1).reverse().find((arg) => isHtml(arg) && !arg.startsWith('-'));
+  return candidate && fs.existsSync(candidate) ? path.resolve(candidate) : null;
+}
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+  pendingFile = fileFromArgv(process.argv);
+
+  // Segunda instância (ex.: outro ficheiro aberto com a app já aberta): a
+  // primeira recebe o ficheiro e vem para a frente.
+  app.on('second-instance', (_event, argv) => {
+    const file = fileFromArgv(argv);
+    if (!launcherWin || launcherWin.isDestroyed()) return;
+    if (file && !session) launcherWin.webContents.send('launcher:open', file);
+    const front = session && session.presenterWin && !session.presenterWin.isDestroyed()
+      ? session.presenterWin : launcherWin;
+    if (front.isMinimized()) front.restore();
+    front.show();
+    front.focus();
+  });
+}
+
 app.on('window-all-closed', () => app.quit());
 
 app.whenReady().then(async () => {
+  if (!app.hasSingleInstanceLock()) return;
   cacheRoot = path.join(app.getPath('temp'), 'apresentacoes-html');
   unpack.prune(cacheRoot);
 

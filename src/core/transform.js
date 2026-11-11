@@ -80,6 +80,56 @@ function toCleanPresentation(html) {
   return beforeBodyEnd(out, PRESENTING_SCRIPT);
 }
 
+const decodeEntities = (text) => text
+  .replace(/&nbsp;/g, ' ')
+  .replace(/&amp;/g, '&')
+  .replace(/&lt;/g, '<')
+  .replace(/&gt;/g, '>')
+  .replace(/&quot;/g, '"')
+  .replace(/&#(\d+);/g, (_m, n) => String.fromCodePoint(Number(n)));
+
+/**
+ * Percursos alternativos dentro do mesmo deck — o equivalente às
+ * "apresentações personalizadas" do PowerPoint.
+ *
+ * Convenção usada nos decks (ex.: consórcio I&D, Indústria vs ENESII):
+ *   - slides alternativos marcados com `data-path="<id>"`;
+ *   - um script lê o percurso do URL (`?p=<id>`) e remove do DOM os slides
+ *     dos outros percursos ANTES de o motor contar os slides;
+ *   - opcionalmente, botões `data-path-opt="<id>"` com o nome a mostrar.
+ *
+ * A app só precisa de saber quais são e como se chama o parâmetro; o resto
+ * fica com o próprio deck. O primeiro botão (ou o primeiro slide marcado) é
+ * o percurso por omissão.
+ *
+ * @returns {null | {param: string, options: {id: string, label: string}[]}}
+ */
+function detectPaths(html) {
+  const ids = [];
+  const labels = {};
+  const add = (id, label) => {
+    if (!ids.includes(id)) ids.push(id);
+    if (label && !labels[id]) labels[id] = label;
+  };
+
+  for (const m of html.matchAll(/<[a-z][\w-]*\b[^>]*\bdata-path-opt="([\w-]+)"[^>]*>([\s\S]*?)<\//gi)) {
+    add(m[1], decodeEntities(m[2].replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim());
+  }
+  const sectionIds = new Set();
+  for (const m of html.matchAll(/<section\b[^>]*\bdata-path="([\w-]+)"/gi)) {
+    sectionIds.add(m[1]);
+    add(m[1]);
+  }
+  // Sem slides marcados não há nada a escolher, mesmo que haja botões.
+  if (sectionIds.size < 2) return null;
+
+  const paramMatch = html.match(/URLSearchParams\([^)]*\)\s*\.get\(\s*['"]([\w-]+)['"]\s*\)/);
+  return {
+    param: paramMatch ? paramMatch[1] : 'p',
+    options: ids.map((id) => ({ id, label: labels[id] || id.charAt(0).toUpperCase() + id.slice(1) })),
+  };
+}
+
 /**
  * Prepara o HTML para ser conduzido pelo modo apresentador: injeta o agente,
  * e — quando existem — as referências de recursos externos que o invólucro
@@ -105,6 +155,7 @@ module.exports = {
   CLEAN_MARKER,
   hasRail,
   isClean,
+  detectPaths,
   toCleanPresentation,
   forPresenting,
   beforeBodyEnd,

@@ -22,7 +22,7 @@ window.DeckFrame = (function () {
   class DeckFrame {
     /**
      * @param {HTMLIFrameElement} el
-     * @param {{onIndex?: (i:number)=>void, onKey?: (e:object)=>void}} handlers
+     * @param {{onIndex?: (i:number)=>void, onKey?: (e:object)=>void, onPath?: (p:string)=>void}} handlers
      */
     constructor(el, handlers = {}) {
       this.el = el;
@@ -99,6 +99,8 @@ window.DeckFrame = (function () {
         if (this.handlers.onIndex) this.handlers.onIndex(data.index, this);
       } else if (data.type === 'present:key') {
         if (this.handlers.onKey) this.handlers.onKey(data, this);
+      } else if (data.type === 'present:path') {
+        if (this.handlers.onPath) this.handlers.onPath(data.path, this);
       }
     }
 

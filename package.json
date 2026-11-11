@@ -1,8 +1,8 @@
 {
   "name": "apresentacoes-html",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "private": true,
-  "description": "Exporta apresentações Claude Design sem barra lateral e apresenta em dois ecrãs.",
+  "description": "Apresenta ficheiros HTML de apresentações em dois ecrãs, como o modo de apresentação do PowerPoint.",
   "author": "Apresentações HTML",
   "license": "UNLICENSED",
   "repository": {

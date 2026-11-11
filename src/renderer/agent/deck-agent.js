@@ -14,13 +14,30 @@
  *
  * Comunica com a janela que o embebe por postMessage; a navegação em si é
  * chamada diretamente (mesma origem) através de window.__present.
+ *
+ * Mensagens para a janela-mãe:
+ *   present:ready  {kind, total, index, design, slides, notes}
+ *   present:index  {index}          — o deck mudou de slide
+ *   present:key    {key, shiftKey}  — tecla ou clique; a app decide o que fazer
+ *   present:path   {path}           — clique no seletor de percurso do deck
  */
 
 (function () {
-  const NAV_KEYS = new Set([
-    'ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown',
-    'PageDown', 'PageUp', 'Home', 'End', ' ', 'Spacebar', 'Enter', 'Backspace',
-  ]);
+  /**
+   * Teclas que nunca chegam ao deck. A app é que decide o que cada uma faz
+   * (incluindo os números e o B/W do PowerPoint); deixá-las passar fazia o
+   * deck navegar por si — o <deck-stage> salta com 1..9 e volta ao início com
+   * R — e as janelas desencontravam-se.
+   */
+  const MODIFIERS = new Set(['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock']);
+
+  const isTyping = (el) => Boolean(el && (el.isContentEditable
+    || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName || '')));
+
+  /** Mesma lista que o runtime do <deck-stage> usa para não roubar cliques. */
+  const INTERACTIVE = 'a[href], button, input, select, textarea, summary, label, '
+    + 'video[controls], audio[controls], [role="button"], [role="link"], [role="tab"], '
+    + '[onclick], [tabindex]:not([tabindex^="-"]), [contenteditable]:not([contenteditable="false" i])';
 
   const post = (message) => {
     try {
@@ -86,6 +103,8 @@
       get index() { return el.index || 0; },
       get total() { return el.length || slides().length; },
       goTo: (i) => el.goTo(i),
+      // O runtime marca o slide visível com este atributo.
+      markActive: (node) => node.setAttribute('data-deck-active', ''),
       onChange: (fn) => el.addEventListener('slidechange', (e) => fn(e.detail.index)),
     };
   }
@@ -103,12 +122,6 @@
 
     let list = pick();
     const stage = document.querySelector('#stage') || document.querySelector('#viewport') || document.body;
-
-    // Esconder a navegação própria do deck — a app é que passa os slides.
-    // (#hud é o rodapé "1 / 21 · ← → navegar" dos decks mais recentes.)
-    const style = document.createElement('style');
-    style.textContent = '#nav, #progress, #hud { display: none !important; }';
-    document.head.appendChild(style);
 
     /**
      * Qual é o slide ativo.
@@ -161,21 +174,6 @@
       document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
     };
 
-    // Estes decks também passam de slide ao clique (no palco ou na janela).
-    // Deixá-los fazer isso por si desencontrava as duas janelas, por isso o
-    // clique é intercetado e entregue à app como se fosse uma tecla — a
-    // navegação volta depois pelo goTo(), como em qualquer outro caso.
-    window.addEventListener('click', (event) => {
-      if (!event.isTrusted) return;
-      if (event.target && event.target.closest && event.target.closest('a')) return;
-      event.stopImmediatePropagation();
-      post({
-        type: 'present:key',
-        key: event.clientX < window.innerWidth * 0.3 ? 'ArrowLeft' : 'ArrowRight',
-        shiftKey: false,
-      });
-    }, true);
-
     // A dimensão de desenho é a do palco ANTES do transform: scale().
     const cs = stage ? getComputedStyle(stage) : null;
     const design = {
@@ -189,6 +187,10 @@
       design,
       get index() { return activeIndex(); },
       get total() { return list.length; },
+      markActive(node) {
+        if (marker === null) activeIndex();
+        if (marker) node.classList.add(marker);
+      },
       goTo(target) {
         const clamped = Math.max(0, Math.min(list.length - 1, target));
         // Sem API pública: avançamos à tecla até chegar, com um tecto de
@@ -233,6 +235,8 @@
       get index() { return adapter.index; },
       get total() { return adapter.total; },
       slides: adapter.slides,
+      /** Põe num clone a marca de "slide ativo" (miniaturas no estado final). */
+      markActive: (node) => { try { if (adapter.markActive) adapter.markActive(node); } catch { /* noop */ } },
       goTo: (i) => adapter.goTo(Math.max(0, Math.min(adapter.total - 1, i))),
       next: () => adapter.goTo(adapter.index + 1),
       prev: () => adapter.goTo(adapter.index - 1),
@@ -240,15 +244,78 @@
 
     adapter.onChange((index) => post({ type: 'present:index', index }));
 
+    // Os controlos próprios do deck (setas, contador, botão de ecrã inteiro)
+    // não fazem sentido no projetor — a app é que passa os slides.
+    //   #nav, #progress, #stage-controls — decks Claude Code (motor GermIrrad)
+    //   #hud                              — rodapé "1 / 21 · ← → navegar"
+    //   .deck-nav-bar, .js-fullscreen-btn — barra "01 / 19" e botão "Ecrã
+    //                                       Inteiro" dos decks deck-stage
+    const style = document.createElement('style');
+    style.textContent = '#nav, #progress, #hud, #stage-controls, .deck-nav-bar, .js-fullscreen-btn,'
+      + ' #btn-fullscreen { display: none !important; }'
+      + ' html.__present-idle, html.__present-idle * { cursor: none !important; }';
+    document.head.appendChild(style);
+
+    // Como no PowerPoint, o cursor desaparece quando o rato está parado.
+    let idleTimer = null;
+    const wake = () => {
+      document.documentElement.classList.remove('__present-idle');
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => document.documentElement.classList.add('__present-idle'), 2500);
+    };
+    window.addEventListener('mousemove', wake, { passive: true });
+    wake();
+
     // As teclas são tratadas pela app, para as duas janelas andarem sempre
     // juntas. Capture em `window` corre antes de tudo — os dois tipos de deck
     // ligam-se em bubble (window e document). Eventos sintéticos nossos
     // (isTrusted false) passam, senão o adaptador genérico bloqueava-se.
     window.addEventListener('keydown', (event) => {
-      if (!event.isTrusted || !NAV_KEYS.has(event.key)) return;
+      if (!event.isTrusted || MODIFIERS.has(event.key)) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+      if (isTyping(event.target)) return;
       event.preventDefault();
       event.stopImmediatePropagation();
       post({ type: 'present:key', key: event.key, shiftKey: event.shiftKey });
+    }, true);
+
+    // Um clique no slide avança (ou recua, no terço esquerdo), como no
+    // PowerPoint. Os decks também o fazem por si, mas deixá-los desencontrava
+    // as duas janelas, por isso o clique é intercetado e entregue à app como
+    // tecla. Exceção: conteúdo interativo do slide (botões, diagramas que se
+    // clicam) fica com o clique — senão deixava de funcionar.
+    const slideOf = (el) => slides.find((s) => s === el || s.contains(el)) || null;
+    const isInteractive = (target) => {
+      const slide = slideOf(target);
+      for (let n = target; n && n.nodeType === 1 && n !== slide; n = n.parentElement) {
+        if (n.matches(INTERACTIVE)) return true;
+        if (slide && getComputedStyle(n).cursor === 'pointer') return true;
+      }
+      return false;
+    };
+
+    window.addEventListener('click', (event) => {
+      if (!event.isTrusted || event.button !== 0) return;
+      const target = event.target && event.target.nodeType === 1 ? event.target : null;
+
+      // Seletor de percurso desenhado no próprio deck: escolher reabria só
+      // este documento noutro URL. Passa pela app, que reabre todas as janelas.
+      const pathOpt = target && target.closest('[data-path-opt]');
+      if (pathOpt) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        post({ type: 'present:path', path: pathOpt.getAttribute('data-path-opt') });
+        return;
+      }
+
+      if (target && isInteractive(target)) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      post({
+        type: 'present:key',
+        key: event.clientX < window.innerWidth * 0.3 ? 'ArrowLeft' : 'ArrowRight',
+        shiftKey: false,
+      });
     }, true);
 
     post({

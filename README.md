@@ -49,25 +49,59 @@ npm start
 
 ## Como se usa
 
-1. Arraste um `.html` para a janela, ou clique em **Escolher ficheiro**. A app diz
-   que tipo de apresentação é.
-2. **Exportar sem barra lateral** cria `<nome> (apresentação).html` na mesma
-   pasta. Nunca substitui nada: se já existir, acrescenta ` (2)`, ` (3)`…
-3. **Apresentar** abre as duas janelas. Com um só monitor, a janela do slide abre
-   normal e há um botão para a passar para o outro ecrã quando o ligar.
+1. Escolha a apresentação de uma destas formas:
+   - na **Biblioteca**: indique uma vez a pasta onde guarda as apresentações
+     (ex.: `Projects/Apresentações`). A app lista, da mais recente para a mais
+     antiga, o ficheiro final de cada subpasta: o que está em `standalone/`, ou
+     os `.html` da própria subpasta quando esta não tem `standalone/`;
+   - arraste um `.html` para a janela, ou clique em **Escolher ficheiro**;
+   - abra o `.html` com a app (**Abrir com** no Windows, ou arraste-o para cima
+     do executável).
+2. Se a apresentação tiver **percursos** (slides alternativos conforme o
+   público, ver abaixo), escolha para quem é antes de começar.
+3. **Iniciar apresentação** abre as duas janelas. Com um só monitor, a janela do
+   slide abre normal e há um botão para a passar para o outro ecrã quando o
+   ligar.
+4. Só nas apresentações do Claude Design com barra lateral: **Exportar cópia
+   limpa** cria `<nome> (apresentação).html` na mesma pasta, sem a barra. Nunca
+   substitui nada: se já existir, acrescenta ` (2)`, ` (3)`…
+
+### Percursos
+
+Uma apresentação pode ter slides alternativos para públicos diferentes, como as
+*apresentações personalizadas* do PowerPoint. No deck do consórcio I&D, por
+exemplo, o slide do pedido muda conforme a reunião é com a **Indústria** ou com a
+**ENESII**. A app reconhece a convenção destes decks:
+
+- os slides alternativos têm `data-path="<id>"`;
+- o deck lê o percurso do URL (`?p=<id>`) e retira os slides dos outros
+  percursos antes de os contar;
+- os botões `data-path-opt="<id>"`, se existirem, dão o nome a mostrar.
+
+O percurso escolhe-se no ecrã inicial e pode trocar-se a meio, na vista do
+apresentador (lista **Percurso** na barra de cima). As duas janelas recarregam
+juntas e ficam no mesmo slide. O seletor desenhado na capa do próprio deck fica
+escondido, porque a escolha passa a ser feita na app.
 
 ### Teclas no modo apresentador
 
 | Tecla | Ação |
 | --- | --- |
-| `→` `↓` `PageDown` `Enter` | Slide seguinte |
-| `←` `↑` `PageUp` `Backspace` | Slide anterior |
+| `→` `↓` `PageDown` `Enter` `N` | Slide seguinte |
+| `←` `↑` `PageUp` `Backspace` `P` | Slide anterior |
 | `Espaço` / `Shift`+`Espaço` | Seguinte / anterior |
+| Clique no slide | Seguinte (no terço esquerdo: anterior) |
 | `Home` `End` | Primeiro / último slide |
+| número + `Enter` | Ir para esse slide (ex.: `1` `2` `Enter`) |
+| `B` ou `.` | Ecrã preto no projetor (outra vez para voltar) |
+| `W` ou `,` | Ecrã branco no projetor |
 | `G` | Mostrar ou esconder a grelha de slides |
-| `Esc` | Terminar a apresentação |
+| `Esc` | Fecha a grelha ou o ecrã preto; senão, termina a apresentação |
 
-As teclas funcionam nas duas janelas — carregar numa move as duas em sincronia.
+As teclas funcionam nas duas janelas e as duas andam sempre juntas. Os botões e
+diagramas interativos dos slides continuam a responder ao clique. O cursor
+desaparece quando o rato fica parado. Os controlos próprios dos decks (setas,
+contador, botão de ecrã inteiro) não aparecem no projetor.
 
 ---
 
@@ -138,6 +172,21 @@ Documentação técnica em [`docs/`](docs/):
 ---
 
 ## Histórico
+
+### 1.1.0
+
+- **Percursos.** Decks com slides alternativos por público (`data-path`) passam
+  a ter escolha de percurso no ecrã inicial e na vista do apresentador.
+- **Biblioteca.** Lista as apresentações de uma pasta, uma por subpasta, com o
+  ficheiro de `standalone/`.
+- **Teclas do PowerPoint.** Número + `Enter`, ecrã preto e branco (`B`/`W`),
+  `N`/`P`. A janela do slide deixou de decidir sozinha: entrega as teclas e os
+  cliques ao apresentador, que é o único a navegar.
+- **Clique no slide.** Avança, mas já não rouba o clique a conteúdo interativo.
+- **Abrir com.** O executável aceita um `.html` na linha de comandos, e um
+  segundo ficheiro aberto vai para a janela já aberta.
+- **Miniaturas.** Os slides aparecem no estado final, com o texto das entradas
+  animadas visível, e a capa do deck do consórcio já não sai em branco.
 
 ### 1.0.1
 

@@ -11,18 +11,8 @@
   <header class="head">
     <p class="eyebrow">Apresentações HTML</p>
     <h1>Abrir uma apresentação</h1>
-    <p class="muted">Exporta uma versão sem a barra lateral de slides, ou apresenta em dois ecrãs.</p>
+    <p class="muted">Escolha uma apresentação e apresente-a em dois ecrãs, como no PowerPoint.</p>
   </header>
-
-  <section id="drop" class="drop">
-    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4"
-         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
-    </svg>
-    <p><strong>Arraste um ficheiro .html para aqui</strong></p>
-    <p class="muted">ou</p>
-    <button id="pick" class="primary" type="button">Escolher ficheiro…</button>
-  </section>
 
   <section id="deck" class="deck" hidden>
     <div class="deck-head">
@@ -34,7 +24,7 @@
     </div>
 
     <div class="actions">
-      <article class="action">
+      <article class="action" id="clean-card">
         <h3>Versão sem barra lateral</h3>
         <p class="muted" id="clean-desc">
           Cria um novo ficheiro ao lado do original, sem a coluna de miniaturas e sem o
@@ -49,10 +39,37 @@
           Slide em ecrã inteiro no segundo monitor; neste, o slide atual, o seguinte,
           as notas e o cronómetro.
         </p>
+        <fieldset id="paths" class="paths" hidden>
+          <legend>Percurso — para quem é a apresentação?</legend>
+          <div id="paths-options" class="seg" role="radiogroup"></div>
+        </fieldset>
         <button id="do-present" class="primary" type="button">Iniciar apresentação</button>
         <p id="screens" class="hint muted"></p>
       </article>
     </div>
+  </section>
+
+  <section class="library">
+    <div class="library-head">
+      <p class="eyebrow">Biblioteca</p>
+      <span id="library-dir" class="muted small path"></span>
+      <button id="library-pick" type="button" class="small-btn">Escolher pasta…</button>
+    </div>
+    <ul id="library-list"></ul>
+    <p id="library-empty" class="muted small">
+      Escolha a pasta onde guarda as apresentações. A app procura em cada subpasta
+      o ficheiro final em <code>standalone/</code>.
+    </p>
+  </section>
+
+  <section id="drop" class="drop">
+    <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.4"
+         stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>
+    </svg>
+    <p><strong>Arraste um ficheiro .html para aqui</strong></p>
+    <p class="muted">ou</p>
+    <button id="pick" class="primary" type="button">Escolher ficheiro…</button>
   </section>
 
   <section class="recents">

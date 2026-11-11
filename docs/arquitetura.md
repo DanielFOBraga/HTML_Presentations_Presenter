@@ -63,28 +63,48 @@ com índice, total, títulos, notas e navegação. Os detalhes de cada adaptador
 estão em [formato-bundle.md](formato-bundle.md).
 
 O ponto mais subtil é o teclado. O agente ouve `keydown` na **fase de captura**,
-em `window`, e faz `stopImmediatePropagation()`:
+em `window`, e faz `stopImmediatePropagation()` a todas as teclas sem
+modificadores (exceto quando se escreve num campo):
 
 ```js
 window.addEventListener('keydown', (event) => {
-  if (!event.isTrusted || !NAV_KEYS.has(event.key)) return;
+  if (!event.isTrusted || MODIFIERS.has(event.key)) return;
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+  if (isTyping(event.target)) return;
   event.preventDefault();
   event.stopImmediatePropagation();
   post({ type: 'present:key', key: event.key, shiftKey: event.shiftKey });
 }, true);
 ```
 
-As duas apresentações ligam-se na fase de borbulhagem, por isso a captura ganha:
-nenhuma delas navega sozinha, e as duas janelas nunca se dessincronizam. O teste
-`event.isTrusted` deixa passar os eventos sintéticos — são precisamente os que o
-adaptador genérico usa para navegar.
+As apresentações ligam-se na fase de borbulhagem, por isso a captura ganha:
+nenhuma navega sozinha (o `<deck-stage>` saltava com `1`..`9` e voltava ao início
+com `R`), e as duas janelas nunca se dessincronizam. O teste `event.isTrusted`
+deixa passar os eventos sintéticos, que são precisamente os que o adaptador
+genérico usa para navegar.
+
+Os cliques seguem o mesmo caminho, com uma exceção: se o alvo é interativo
+(botão, link, `tabindex`, ou qualquer coisa com `cursor: pointer` dentro do
+slide), o clique fica com o deck. Um clique em `[data-path-opt]` (o seletor de
+percurso desenhado no deck) chega à app como `present:path`.
 
 ## Sincronização
 
-O processo principal é o centro. Uma janela envia `deck:goto`; o `main.js`
-reencaminha `deck:index` para a **outra** janela da sessão. Não se usa
-`BroadcastChannel` entre janelas: com o processo principal como árbitro, o estado
-da sessão vive num sítio só.
+O processo principal é o centro e a vista do apresentador é o único sítio onde
+se decide o que uma tecla faz. A janela do slide não navega: envia `deck:key`, o
+`main.js` entrega-o ao apresentador, e este responde com `deck:goto`, que volta à
+janela do slide como `deck:index`. O ecrã preto/branco segue como
+`display:blank`. Não se usa `BroadcastChannel` entre janelas: com o processo
+principal como árbitro, o estado da sessão vive num sítio só.
+
+## Percursos
+
+`transform.detectPaths()` procura slides com `data-path` (pelo menos dois
+valores), os nomes nos botões `data-path-opt` e o nome do parâmetro na chamada
+`URLSearchParams(...).get('<param>')`. A sessão guarda o percurso escolhido e o
+deck é servido como `/deck/deck.html?<param>=<id>`. É o próprio deck que retira os
+outros slides, como faz no browser. Trocar de percurso (`present:setPath`) envia
+`deck:reload` às duas janelas, que recarregam no mesmo índice.
 
 ## As janelas nos monitores
 

@@ -37,6 +37,17 @@
 .timer.running { border-color: var(--accent); color: var(--accent-strong); }
 .clock { font-size: 13px; color: var(--fg-subtle); font-variant-numeric: tabular-nums; }
 
+/* Percurso (slides alternativos conforme o público). */
+.path-box[hidden] { display: none; }
+.path-box { display: flex; align-items: center; gap: 6px; margin-left: 4px; }
+.path-label { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--fg-subtle); }
+.path-box select {
+  font: inherit; font-size: 13px; color: var(--fg);
+  background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 4px 8px;
+}
+
+#black.on,
 #toggle-grid.on { background: var(--accent-dim); border-color: var(--accent); color: var(--accent-strong); }
 
 /* ------------------------------------------------------------------- palco */
@@ -82,6 +93,25 @@
   /* A navegação é toda pelos controlos — nada de cliques a passar ao deck. */
   pointer-events: none;
 }
+
+.blank-card[hidden] { display: none; }
+.blank-card {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  background: rgba(0, 0, 0, 0.82);
+  color: #fff; font-size: 15px; letter-spacing: 0.02em;
+}
+.blank-card.white { background: rgba(255, 255, 255, 0.86); color: #111; }
+
+.goto {
+  position: fixed; left: 50%; top: 40%;
+  transform: translate(-50%, -50%);
+  background: var(--bg-elev-2); border: 1px solid var(--accent);
+  border-radius: var(--radius); padding: 14px 26px;
+  font-size: 22px; font-weight: 650; font-variant-numeric: tabular-nums;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+}
+.goto[hidden] { display: none; }
 
 .end-card[hidden] { display: none; }
 .end-card {

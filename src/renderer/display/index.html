@@ -24,10 +24,15 @@
     border: 1px solid rgba(255, 255, 255, 0.14);
   }
   #hint[hidden] { display: none; }
+  /* Ecrã preto / branco (B / W). Por cima do deck, que continua no slide. */
+  #blank { position: fixed; inset: 0; background: #000; z-index: 10; cursor: none; }
+  #blank.white { background: #fff; }
+  #blank[hidden] { display: none; }
 </style>
 </head>
 <body>
 <div id="stage-box"><iframe id="frame" title="Slide"></iframe></div>
+<div id="blank" hidden></div>
 <p id="hint" hidden><span></span></p>
 <script src="/ui/shared/deck-frame.js"></script>
 <script src="/ui/display/display.js"></script>
